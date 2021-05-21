@@ -77,26 +77,6 @@ class BurpExtender(IBurpExtender, IScannerCheck):
 		else:
 			return None
 
-	def tryBypassWithHeaderPayload(self, request, payload, httpService):
-		results = []
-
-		originalRequest = self.helpers.bytesToString(request.getRequest())
-		for pathToTest in payloads:
-			newRequest = originalRequest.replace(requestPath, pathToTest)
-			newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
-			newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
-
-			if newRequestStatusCode == "200":
-				originalRequestUrl = str(request.getUrl())
-				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
-				print "tested path " + pathToTest +". status code: "+ newRequestStatusCode
-				results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
-
-		if len(results) > 0:
-			return results
-		else:
-			return None
-
 	def doPassiveScan(self, baseRequestResponse):
 		queryPayloadsResults = []
 		headerPayloadsResults = []
@@ -122,25 +102,6 @@ class BurpExtender(IBurpExtender, IScannerCheck):
 					[baseRequestResponse],
 					"Possible 403 Bypass",
 					"".join(queryPayloadsResults),
-					"High",
-					)]
-
-			else:
-				#test for header-based issues
-				for payload in headerPayloadsFromFile:
-					payload = payload.rstrip('\n')
-					result = self.tryBypassWithHeaderPayload(baseRequestResponse, payload, httpService)
-				if result != None:
-					headerPayloadsResults += result
-
-			if len(headerPayloadsResults) > 0:
-				#get headerPayloadsResults details before returning
-				return [CustomScanIssue(
-					httpService,
-					self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
-					[baseRequestResponse],
-					"Possible 403 Bypass",
-					"".join(headerPayloadsResults),
 					"High",
 					)]
 
