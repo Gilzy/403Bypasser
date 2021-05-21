@@ -66,11 +66,11 @@ class BurpExtender(IBurpExtender, IScannerCheck):
 			newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
 			newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
 
-			# if newRequestStatusCode == "200":
-			originalRequestUrl = str(request.getUrl())
-			vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
-			print "tested path " + pathToTest +". status code: "+ newRequestStatusCode
-			results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
+			if newRequestStatusCode == "200":
+				originalRequestUrl = str(request.getUrl())
+				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
+				print "tested path " + pathToTest +". status code: "+ newRequestStatusCode
+				results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
 
 		if len(results) > 0:
 			return results
