@@ -1,4 +1,6 @@
-from burp import IBurpExtender, IScanIssue, IScannerCheck
+from burp import IBurpExtender, IScanIssue, IScannerCheck, IContextMenuFactory, IContextMenuInvocation
+from javax.swing import JMenuItem
+import thread
 
 queryPayloadsFile = open('query payloads.txt', "r")
 queryPayloadsFromFile = queryPayloadsFile.readlines()
@@ -8,17 +10,33 @@ headerPayloadsFromFile = headerPayloadsFile.readlines()
 
 extentionName = "403 Bypasser"
 
-class BurpExtender(IBurpExtender, IScannerCheck):
+class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 	def registerExtenderCallbacks(self, callbacks):
 		self.callbacks = callbacks
 		self.helpers = callbacks.getHelpers()
 		callbacks.registerScannerCheck(self)
+		callbacks.registerContextMenuFactory(self)
 		callbacks.setExtensionName(extentionName)
 
 		sys.stdout = callbacks.getStdout()
 		sys.stderr = callbacks.getStderr()
 
 		return None
+
+	def createMenuItems(self, invocation):
+		self.context = invocation
+		menuList = []
+		menuItem = JMenuItem("Bypass 403", actionPerformed=self.performAction)
+		menuList.append(menuItem)
+		return menuList
+
+	def performAction(self, event):
+		selectedMessages = self.context.getSelectedMessages()
+		for message in selectedMessages:
+			thread.start_new_thread(self.testRequest, (message,))
+
+		return None
+
 
 	def isInteresting(self, response):
 		responseCode = response.getStatusCode()
@@ -77,33 +95,40 @@ class BurpExtender(IBurpExtender, IScannerCheck):
 		else:
 			return None
 
-	def doPassiveScan(self, baseRequestResponse):
-		queryPayloadsResults = []
-		headerPayloadsResults = []
 
-		httpService = baseRequestResponse.getHttpService()
+	def doPassiveScan(self, baseRequestResponse, isCalledFromMenu=False):
+		# queryPayloadsResults = []
+		# headerPayloadsResults = []
+		#httpService = baseRequestResponse.getHttpService()
 		response = self.helpers.analyzeResponse(baseRequestResponse.getResponse())
 		if self.isInteresting(response) == False:
 			return None
 
 		else:
-			#test for query-based issues
-			for payload in queryPayloadsFromFile:
-				payload = payload.rstrip('\n')
-				result = self.tryBypassWithQueryPayload(baseRequestResponse, payload, httpService)
-				if result != None:
-					queryPayloadsResults += result
+			self.testRequest(baseRequestResponse)
 
-			if len(queryPayloadsResults) > 0:
-				#get queryPayloadsResults details before returning
-				return [CustomScanIssue(
-					httpService,
-					self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
-					[baseRequestResponse],
-					"Possible 403 Bypass",
-					"".join(queryPayloadsResults),
-					"High",
-					)]
+	def testRequest(self, baseRequestResponse):
+		queryPayloadsResults = []
+		headerPayloadsResults = []
+		httpService = baseRequestResponse.getHttpService()
+
+		#test for query-based issues
+		for payload in queryPayloadsFromFile:
+			payload = payload.rstrip('\n')
+			result = self.tryBypassWithQueryPayload(baseRequestResponse, payload, httpService)
+			if result != None:
+				queryPayloadsResults += result
+
+		if len(queryPayloadsResults) > 0:
+			#get queryPayloadsResults details before returning
+			return [CustomScanIssue(
+				httpService,
+				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+				[baseRequestResponse],
+				"Possible 403 Bypass",
+				"".join(queryPayloadsResults),
+				"High",
+				)]
 
 
 
