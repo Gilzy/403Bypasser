@@ -26,14 +26,14 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 	def createMenuItems(self, invocation):
 		self.context = invocation
 		menuList = []
-		menuItem = JMenuItem("Bypass 403", actionPerformed=self.performAction)
+		menuItem = JMenuItem("Bypass 403", actionPerformed=self.testFromMenu)
 		menuList.append(menuItem)
 		return menuList
 
-	def performAction(self, event):
+	def testFromMenu(self, event):
 		selectedMessages = self.context.getSelectedMessages()
 		for message in selectedMessages:
-			thread.start_new_thread(self.testRequest, (message,))
+			thread.start_new_thread(self.doPassiveScan, (message, True, ))
 
 		return None
 
@@ -84,10 +84,9 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 			newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
 			newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
 
-			if newRequestStatusCode == "200":
+			if newRequestStatusCode == "200" or newRequestStatusCode == "304":
 				originalRequestUrl = str(request.getUrl())
 				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
-				print "tested path " + pathToTest +". status code: "+ newRequestStatusCode
 				results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
 
 		if len(results) > 0:
@@ -97,15 +96,19 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 
 
 	def doPassiveScan(self, baseRequestResponse, isCalledFromMenu=False):
-		# queryPayloadsResults = []
-		# headerPayloadsResults = []
-		#httpService = baseRequestResponse.getHttpService()
 		response = self.helpers.analyzeResponse(baseRequestResponse.getResponse())
-		if self.isInteresting(response) == False:
+		if self.isInteresting(response) == False and isCalledFromMenu == False:
 			return None
 
 		else:
-			self.testRequest(baseRequestResponse)
+			result = self.testRequest(baseRequestResponse)
+			if result != None:
+				if isCalledFromMenu == True:
+					self.callbacks.addScanIssue(result[0])
+				else:
+					return result
+			else:
+				return None
 
 	def testRequest(self, baseRequestResponse):
 		queryPayloadsResults = []
@@ -129,6 +132,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				"".join(queryPayloadsResults),
 				"High",
 				)]
+		else:
+			return None
 
 
 
