@@ -1,5 +1,8 @@
 from burp import IBurpExtender, IScanIssue, IScannerCheck, IContextMenuFactory, IContextMenuInvocation
 from javax.swing import JMenuItem
+import java.util.ArrayList as ArrayList
+import java.lang.String as String
+
 import thread
 
 queryPayloadsFile = open('query payloads.txt', "r")
@@ -84,10 +87,43 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 			newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
 			newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
 
-			if newRequestStatusCode == "200" or newRequestStatusCode == "304":
+			if newRequestStatusCode == "200":
 				originalRequestUrl = str(request.getUrl())
 				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
 				results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
+
+		if len(results) > 0:
+			return results
+		else:
+			return None
+
+	def tryBypassWithHeaderPayload(self, baseRequestResponse, payload, httpService):
+		results = []
+		headerAlreadyAdded = False
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		headers = requestInfo.getHeaders()
+		for index, header in enumerate(headers):
+			if header.split(" ")[0].lower() == payload.split(" ")[0].lower(): #if header already exist
+				headers[index] = payload
+				headerAlreadyAdded = True
+
+		if headerAlreadyAdded == False:
+			headers.append(payload)
+
+		requestBody = baseRequestResponse.getRequest()[requestInfo.getBodyOffset():]
+		
+
+		headersAsJavaSublist = ArrayList()
+		for header in headers:
+			headersAsJavaSublist.add(String(header))
+
+		newRequest = self.helpers.buildHttpMessage(headersAsJavaSublist, requestBody)
+		newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
+		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
+
+		if newRequestStatusCode == "200":
+			originalRequestUrl = str(request.getUrl())
+			results.append("<ul>- Same request with added header " + payload + "returned status " + newRequestStatusCode + " </ul>")
 
 		if len(results) > 0:
 			return results
@@ -132,8 +168,23 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				"".join(queryPayloadsResults),
 				"High",
 				)]
-		else:
-			return None
+		#test for header-based issues
+		for payload in headerPayloadsFromFile:
+			payload = payload.rstrip('\n')
+			result = self.tryBypassWithHeaderPayload(baseRequestResponse, payload, httpService)
+			if result != None:
+				headerPayloadsResults += result
+
+		if len(headerPayloadsResults) > 0:
+			return [CustomScanIssue(
+				httpService,
+				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+				[baseRequestResponse],
+				"Possible 403 Bypass - Header Based",
+				"".join(queryPayloadsResults),
+				"High",
+				)]
+		return None
 
 
 
