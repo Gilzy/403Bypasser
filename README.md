@@ -11,8 +11,6 @@ For instance `https://www.example.com/api/v1/users` with payload `..;` will resu
   https://www.example.com..;/api/v1/users
   https://www.example.com/api..;/v1/users
   https://www.example.com/api/v1..;/users
-  https:/..;/www.example.com/api/v1/users
-  https://..;www.example.com/api/v1/users
   https://www.example.com/..;api/v1/users
   https://www.example.com/api/..;v1/users
   https://www.example.com/api/v1/..;users
