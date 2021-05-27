@@ -8,8 +8,6 @@ A Burp Suite extension made to automate the process of bypassing 403 pages. Heav
 - Runs with every possible permutation for query-based payloads. 
 For instance `https://www.example.com/api/v1/users` with payload `..;` will result in testing the following:
   ```
-  https:..;//www.example.com/api/v1/users
-  https:/..;/www.example.com/api/v1/users
   https://www.example.com..;/api/v1/users
   https://www.example.com/api..;/v1/users
   https://www.example.com/api/v1..;/users
