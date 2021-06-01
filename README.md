@@ -17,7 +17,7 @@ For instance `https://www.example.com/api/v1/users` with payload `..;` will resu
   https://www.example.com/api/v1/users/..;
   https://www.example.com/api/v1/users/..;/
   ```
-- Header payloads are added to the original request. In case the header already exist in the original request its value is replaced.
+- Header payloads are added to the original request. In case the header already exists in the original request its value is replaced.
 - Automatically detects and tries to bypass requests with 403 responses.
 - Supports manual activation through context menu.
 - Payloads are supplied by the user under `query payloads.txt` and `header payloads.txt`.
