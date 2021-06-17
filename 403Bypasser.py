@@ -77,6 +77,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 
 	def tryBypassWithQueryPayload(self, request, payload, httpService):
 		results = []
+		#each result element is an array of [detail,httpMessage]
 
 		requestPath = request.getUrl().getPath()
 		payloads = self.generatePayloads(requestPath, payload)
@@ -90,7 +91,11 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 			if newRequestStatusCode == "200":
 				originalRequestUrl = str(request.getUrl())
 				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
-				results.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
+
+				issue = []
+				issue.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
+				issue.append(newRequestResult)
+				results.append(issue)
 
 		if len(results) > 0:
 			return results
@@ -99,6 +104,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 
 	def tryBypassWithHeaderPayload(self, baseRequestResponse, payload, httpService):
 		results = []
+		#each result element is an array of [detail,httpMessage]
+
 		headerAlreadyAdded = False
 		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
 		headers = requestInfo.getHeaders()
@@ -123,7 +130,11 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 
 		if newRequestStatusCode == "200":
 			originalRequestUrl = str(request.getUrl())
-			results.append("<ul>- Same request with added header " + payload + "returned status " + newRequestStatusCode + " </ul>")
+
+			issue = []
+			issue.append("<ul>- Same request with added header " + payload + "returned status " + newRequestStatusCode + " </ul>")
+			issue.append(newRequestResult)
+			results.append(issue)
 
 		if len(results) > 0:
 			return results
@@ -159,13 +170,20 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				queryPayloadsResults += result
 
 		if len(queryPayloadsResults) > 0:
-			#get queryPayloadsResults details before returning
+			issueDetails = []
+			issueHttpMessages = []
+			issueHttpMessages.append(baseRequestResponse)
+
+			for issue in queryPayloadsResults:
+				issueDetails.append(issue[0])
+				issueHttpMessages.append(issue[1])
+
 			return [CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
-				[baseRequestResponse],
+				issueHttpMessages,
 				"Possible 403 Bypass",
-				"".join(queryPayloadsResults),
+				"".join(issueDetails),
 				"High",
 				)]
 		#test for header-based issues
@@ -176,12 +194,20 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				headerPayloadsResults += result
 
 		if len(headerPayloadsResults) > 0:
+			issueDetails = []
+			issueHttpMessages = []
+			issueHttpMessages.append(baseRequestResponse)
+
+			for issue in headerPayloadsResults:
+				issueDetails.append(issue[0])
+				issueHttpMessages.append(issue[1])
+
 			return [CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
-				[baseRequestResponse],
+				issueHttpMessages,
 				"Possible 403 Bypass - Header Based",
-				"".join(queryPayloadsResults),
+				"".join(issueDetails),
 				"High",
 				)]
 		return None
