@@ -12,6 +12,7 @@ headerPayloadsFile = open('header payloads.txt', "r")
 headerPayloadsFromFile = headerPayloadsFile.readlines()
 
 extentionName = "403 Bypasser"
+requestNum = 2
 
 class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 	def registerExtenderCallbacks(self, callbacks):
@@ -82,20 +83,29 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 		requestPath = request.getUrl().getPath()
 		payloads = self.generatePayloads(requestPath, payload)
 
+
 		originalRequest = self.helpers.bytesToString(request.getRequest())
 		for pathToTest in payloads:
 			newRequest = originalRequest.replace(requestPath, pathToTest)
 			newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
 			newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
 
+
 			if newRequestStatusCode == "200":
 				originalRequestUrl = str(request.getUrl())
 				vulnerableReuqestUrl = originalRequestUrl.replace(requestPath,pathToTest)
 
+				responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+				for header in responseHeaders:
+					if "Content-Length: " in header:
+						resultContentLength = header[17:]
+
 				issue = []
-				issue.append("<ul>- " + originalRequestUrl + " => 403<br>" + "  " + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + " => " + newRequestStatusCode + "</ul>")
+				global requestNum
+				issue.append("<tr><td>" + str(requestNum) + "</td><td>" + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 				issue.append(newRequestResult)
 				results.append(issue)
+				requestNum += 1
 
 		if len(results) > 0:
 			return results
@@ -130,9 +140,14 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 
 		if newRequestStatusCode == "200":
 			originalRequestUrl = str(request.getUrl())
+			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+			for header in responseHeaders:
+				if "Content-Length: " in header:
+					resultContentLength = header[17:]
 
 			issue = []
-			issue.append("<ul>- Same request with added header " + payload + "returned status " + newRequestStatusCode + " </ul>")
+			global requestNum
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>header: " + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 			issue.append(newRequestResult)
 			results.append(issue)
 
@@ -183,7 +198,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass",
-				"".join(issueDetails),
+				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
 				)]
 		#test for header-based issues
@@ -207,7 +222,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass - Header Based",
-				"".join(issueDetails),
+				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
 				)]
 		return None
