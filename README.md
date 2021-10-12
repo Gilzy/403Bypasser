@@ -2,7 +2,7 @@
 A Burp Suite extension made to automate the process of bypassing 403 pages. Heavily based on Orange Tsai's talk [Breaking Parser Logic: Take Your Path Normalization off and Pop 0days Out!
 ](https://www.youtube.com/watch?v=CIhHpkybYsY)
 
-![Sample Issue](https://github.com/Gilzy/403Bypasser/blob/main/Sample%20Issue.jpg?raw=true)
+![Sample Issue](https://raw.githubusercontent.com/Gilzy/403Bypasser/c7d53696089ed2e80191c003fd992a21dd9858f4/Sample%20Issue.jpg)
 
 ### Features
 - Runs with every possible permutation for query-based payloads. 
