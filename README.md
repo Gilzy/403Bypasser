@@ -18,9 +18,9 @@ For instance `https://www.example.com/api/v1/users` with payload `..;` will resu
   https://www.example.com/api/v1/users/..;/
   ```
 - Header payloads are added to the original request. In case the header already exists in the original request its value is replaced.
-- Automatically detects and tries to bypass requests with 403 responses.
+- ~~Automatically detects and tries to bypass requests with 403 responses.~~ If you want auto detection use [this version](https://github.com/Gilzy/403Bypasser/commit/8a821dcf11c7f2fb9974361cbb16072b51b7cf15).
 - Supports manual activation through context menu.
-- Payloads are supplied by the user under `query payloads.txt` and `header payloads.txt`.
+- Payloads are supplied by the user under dedicated tab, default values are stored under `query payloads.txt` and `header payloads.txt`.
 - Issues are added under the Issue Activity tab.
 
 ### TODO
