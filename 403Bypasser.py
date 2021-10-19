@@ -1,7 +1,11 @@
-from burp import IBurpExtender, IScanIssue, IScannerCheck, IContextMenuFactory, IContextMenuInvocation
+from burp import IBurpExtender, IScanIssue, IScannerCheck, IContextMenuFactory, IContextMenuInvocation, ITab
 from javax.swing import JMenuItem
+from javax import swing
+from javax.swing import JPanel, JButton, JList, JTable, table, JLabel, JScrollPane, JTextField, WindowConstants, GroupLayout, LayoutStyle, JFrame
+from java.awt import BorderLayout
 import java.util.ArrayList as ArrayList
 import java.lang.String as String
+from java.lang import Short
 
 import thread
 
@@ -14,30 +18,200 @@ headerPayloadsFromFile = headerPayloadsFile.readlines()
 extentionName = "403 Bypasser"
 requestNum = 2
 
-class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
+class uiTab(JFrame):
+
+	def queryAddButtonClicked(self, event):
+		textFieldValue = self.queryPayloadsAddPayloadTextField.getText()
+
+		if textFieldValue != "":
+			tableModel = self.queryPayloadsTable.getModel()
+			tableModel.addRow([textFieldValue])
+		self.queryPayloadsAddPayloadTextField.setText("")
+
+	def queryClearButtonClicked(self, event):
+		global requestNum
+		requestNum = 2
+		tableModel = self.queryPayloadsTable.getModel()
+		tableModel.setRowCount(0)
+
+	def queryRemoveButtonClicked(self, event):
+		tableModel = self.queryPayloadsTable.getModel()
+		selectedRows = self.queryPayloadsTable.getSelectedRows()
+		for row in selectedRows:
+			tableModel.removeRow(row)
+		global requestNum
+		if requestNum > 2:
+			requestNum -= 1
+
+	def headerAddButtonClicked(self, event):
+		textFieldValue = self.headerPayloadsAddPayloadTextField.getText()
+
+		if textFieldValue != "":
+			tableModel = self.headerPayloadsTable.getModel()
+			tableModel.addRow([textFieldValue])
+		self.headerPayloadsAddPayloadTextField.setText("")
+
+	def headerClearButtonClicked(self, event):
+		global requestNum
+		requestNum = 2
+		tableModel = self.headerPayloadsTable.getModel()
+		tableModel.setRowCount(0)
+
+	def headerRemoveButtonClicked(self, event):
+		tableModel = self.headerPayloadsTable.getModel()
+		selectedRows = self.headerPayloadsTable.getSelectedRows()
+		for row in selectedRows:
+			tableModel.removeRow(row)
+		global requestNum
+		if requestNum > 2:
+			requestNum -= 1
+
+	def __init__(self):
+		self.queryPayloadsLabel = JLabel()
+		self.jScrollPane1 = JScrollPane()
+		self.queryPayloadsTable = JTable()
+		self.queryPayloadsAddPayloadTextField = JTextField()
+		self.queryPayloadsAddButton = JButton("Add", actionPerformed=self.queryAddButtonClicked)
+		self.queryPayloadsClearButton = JButton("Clear", actionPerformed=self.queryClearButtonClicked)
+		self.queryPayloadsRemoveButton = JButton("Remove", actionPerformed=self.queryRemoveButtonClicked)
+
+		self.headerPayloadsLabel = JLabel()
+		self.jScrollPane2 = JScrollPane()
+		self.headerPayloadsTable = JTable()
+		self.headerPayloadsAddPayloadTextField = JTextField()
+		self.headerPayloadsAddButton = JButton("Add", actionPerformed=self.headerAddButtonClicked)
+		self.headerPayloadsClearButton = JButton("Clear", actionPerformed=self.headerClearButtonClicked)
+		self.headerPayloadsRemoveButton = JButton("Remove", actionPerformed=self.headerRemoveButtonClicked)
+
+		self.panel = JPanel()
+
+		self.queryPayloadsLabel.setText("Query Payloads")
+
+		queryTableData = []
+		for queryPayload in queryPayloadsFromFile:
+			queryTableData.append([queryPayload])
+
+		headerTableData = []
+		for headerPayload in headerPayloadsFromFile:
+			headerTableData.append([headerPayload])
+
+		queryTableColumns = [None]
+		queryTableModel = table.DefaultTableModel(queryTableData,queryTableColumns)
+		self.queryPayloadsTable.setModel(queryTableModel)
+		self.queryPayloadsTable.getTableHeader().setUI(None)
+
+		self.jScrollPane1.setViewportView(self.queryPayloadsTable)
+
+		self.jScrollPane1.setViewportView(self.queryPayloadsTable)
+
+		self.headerPayloadsLabel.setText("Header Payloads")
+
+		headerTableColumns = [None]
+		headerTableModel = table.DefaultTableModel(headerTableData,headerTableColumns)
+		self.headerPayloadsTable.setModel(headerTableModel)
+		self.headerPayloadsTable.getTableHeader().setUI(None)
+		self.jScrollPane2.setViewportView(self.headerPayloadsTable)
+
+
+
+		layout = GroupLayout(self.panel)
+		self.panel.setLayout(layout)
+
+		
+		layout.setHorizontalGroup(
+			layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+			.addGroup(layout.createSequentialGroup()
+				.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+					.addComponent(self.queryPayloadsAddButton, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+					.addComponent(self.queryPayloadsRemoveButton, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+					.addComponent(self.queryPayloadsClearButton, GroupLayout.PREFERRED_SIZE, 93, GroupLayout.PREFERRED_SIZE))
+				.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+				.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+					.addComponent(self.queryPayloadsLabel)
+					.addComponent(self.queryPayloadsAddPayloadTextField)
+					.addComponent(self.jScrollPane1, GroupLayout.PREFERRED_SIZE, 107, GroupLayout.PREFERRED_SIZE))
+				.addGap(100, 100, 100)
+				.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+					.addComponent(self.headerPayloadsAddButton, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+					.addComponent(self.headerPayloadsRemoveButton, GroupLayout.DEFAULT_SIZE, GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+					.addComponent(self.headerPayloadsClearButton, GroupLayout.PREFERRED_SIZE, 93, GroupLayout.PREFERRED_SIZE))
+				.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+				.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING, False)
+					.addComponent(self.headerPayloadsLabel)
+					.addComponent(self.headerPayloadsAddPayloadTextField)
+					.addComponent(self.jScrollPane2, GroupLayout.PREFERRED_SIZE, 107, GroupLayout.PREFERRED_SIZE))
+				.addGap(0, 483, Short.MAX_VALUE))
+		)
+		layout.setVerticalGroup(
+			layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+			.addGroup(layout.createSequentialGroup()
+				.addGap(17, 17, 17)
+				.addGroup(layout.createParallelGroup(GroupLayout.Alignment.TRAILING)
+					.addGroup(layout.createSequentialGroup()
+						.addComponent(self.headerPayloadsLabel)
+						.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+						.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+							.addComponent(self.jScrollPane2, GroupLayout.PREFERRED_SIZE, 195, GroupLayout.PREFERRED_SIZE)
+							.addGroup(layout.createSequentialGroup()
+								.addComponent(self.headerPayloadsClearButton)
+								.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+								.addComponent(self.headerPayloadsRemoveButton)))
+						.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+						.addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+							.addComponent(self.headerPayloadsAddPayloadTextField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+							.addComponent(self.headerPayloadsAddButton)))
+					.addGroup(layout.createSequentialGroup()
+						.addComponent(self.queryPayloadsLabel)
+						.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+						.addGroup(layout.createParallelGroup(GroupLayout.Alignment.LEADING)
+							.addComponent(self.jScrollPane1, GroupLayout.PREFERRED_SIZE, 195, GroupLayout.PREFERRED_SIZE)
+							.addGroup(layout.createSequentialGroup()
+								.addComponent(self.queryPayloadsClearButton)
+								.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+								.addComponent(self.queryPayloadsRemoveButton)))
+						.addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+						.addGroup(layout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+							.addComponent(self.queryPayloadsAddPayloadTextField, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+							.addComponent(self.queryPayloadsAddButton))))
+				.addContainerGap(324, Short.MAX_VALUE))
+		)
+
+
+
+class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 	def registerExtenderCallbacks(self, callbacks):
 		self.callbacks = callbacks
-		self.helpers = callbacks.getHelpers()
-		callbacks.registerScannerCheck(self)
-		callbacks.registerContextMenuFactory(self)
-		callbacks.setExtensionName(extentionName)
+		self.helpers = self.callbacks.getHelpers()
+		self.callbacks.registerScannerCheck(self)
+		self.callbacks.registerContextMenuFactory(self)
+		self.callbacks.setExtensionName(extentionName)
 
-		sys.stdout = callbacks.getStdout()
-		sys.stderr = callbacks.getStderr()
+		self.callbacks.addSuiteTab(self)
 
+		sys.stdout = self.callbacks.getStdout()
+		sys.stderr = self.callbacks.getStderr()
+		
 		return None
+
+	def getTabCaption(self):
+		return extentionName
+
+	def getUiComponent(self):
+		self.frm = uiTab()
+
+		return self.frm.panel
 
 	def createMenuItems(self, invocation):
 		self.context = invocation
-		menuList = []
-		menuItem = JMenuItem("Bypass 403", actionPerformed=self.testFromMenu)
-		menuList.append(menuItem)
-		return menuList
+		self.menuList = []
+		self.menuItem = JMenuItem("Bypass 403", actionPerformed=self.testFromMenu)
+		self.menuList.append(self.menuItem)
+		return self.menuList
 
 	def testFromMenu(self, event):
 		selectedMessages = self.context.getSelectedMessages()
 		for message in selectedMessages:
-			thread.start_new_thread(self.doPassiveScan, (message, True, ))
+			thread.start_new_thread(self.doActiveScan, (message, "" , True, ))
 
 		return None
 
@@ -140,7 +314,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
 
 		if newRequestStatusCode == "200":
-			originalRequestUrl = str(request.getUrl())
+			originalRequestUrl = str(baseRequestResponse.getUrl())
 			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
 			resultContentLength = "No CL in response"
 			for header in responseHeaders:
@@ -159,7 +333,10 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 			return None
 
 
-	def doPassiveScan(self, baseRequestResponse, isCalledFromMenu=False):
+	def doPassiveScan(self, baseRequestResponse):
+		return None
+
+	def doActiveScan(self, baseRequestResponse, insertionPoint, isCalledFromMenu=False):
 		response = self.helpers.analyzeResponse(baseRequestResponse.getResponse())
 		if self.isInteresting(response) == False and isCalledFromMenu == False:
 			return None
@@ -180,7 +357,11 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 		httpService = baseRequestResponse.getHttpService()
 
 		#test for query-based issues
-		for payload in queryPayloadsFromFile:
+		queryPayloadsFromTable = []
+		for rowIndex in range(self.frm.queryPayloadsTable.getRowCount()):
+			queryPayloadsFromTable.append(str(self.frm.queryPayloadsTable.getValueAt(rowIndex, 0)))
+
+		for payload in queryPayloadsFromTable:
 			payload = payload.rstrip('\n')
 			result = self.tryBypassWithQueryPayload(baseRequestResponse, payload, httpService)
 			if result != None:
@@ -204,7 +385,11 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 				"High",
 				)]
 		#test for header-based issues
-		for payload in headerPayloadsFromFile:
+		headerPayloadsFromTable = []
+		for rowIndex in range(self.frm.headerPayloadsTable.getRowCount()):
+			headerPayloadsFromTable.append(str(self.frm.headerPayloadsTable.getValueAt(rowIndex, 0)))
+
+		for payload in headerPayloadsFromTable:
 			payload = payload.rstrip('\n')
 			result = self.tryBypassWithHeaderPayload(baseRequestResponse, payload, httpService)
 			if result != None:
@@ -218,7 +403,6 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 			for issue in headerPayloadsResults:
 				issueDetails.append(issue[0])
 				issueHttpMessages.append(issue[1])
-
 			return [CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
@@ -230,7 +414,11 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory):
 		return None
 
 
-
+	def consolidateDuplicateIssues(self, existingIssue, newIssue):
+		if (existingIssue.getIssueDetail() == newIssue.getIssueDetail()):
+			return -1
+		else:
+			return 0
 
 class CustomScanIssue (IScanIssue):
     def __init__(self, httpService, url, httpMessages, name, detail, severity):
