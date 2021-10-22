@@ -274,6 +274,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 				for header in responseHeaders:
 					if "Content-Length: " in header:
 						resultContentLength = header[17:]
+						if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+							resultContentLength = resultContentLength.rstrip(']')
 
 				issue = []
 				global requestNum
@@ -320,6 +322,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			for header in responseHeaders:
 				if "Content-Length: " in header:
 					resultContentLength = header[17:]
+					if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+						resultContentLength = resultContentLength.rstrip(']')
 
 			issue = []
 			global requestNum
@@ -421,42 +425,42 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return 0
 
 class CustomScanIssue (IScanIssue):
-    def __init__(self, httpService, url, httpMessages, name, detail, severity):
-        self._httpService = httpService
-        self._url = url
-        self._httpMessages = httpMessages
-        self._name = name
-        self._detail = detail
-        self._severity = severity
+	def __init__(self, httpService, url, httpMessages, name, detail, severity):
+		self._httpService = httpService
+		self._url = url
+		self._httpMessages = httpMessages
+		self._name = name
+		self._detail = detail
+		self._severity = severity
 
-    def getUrl(self):
-        return self._url
+	def getUrl(self):
+		return self._url
 
-    def getIssueName(self):
-        return self._name
+	def getIssueName(self):
+		return self._name
 
-    def getIssueType(self):
-        return 0
+	def getIssueType(self):
+		return 0
 
-    def getSeverity(self):
-        return self._severity
+	def getSeverity(self):
+		return self._severity
 
-    def getConfidence(self):
-        return "Firm"
+	def getConfidence(self):
+		return "Firm"
 
-    def getIssueBackground(self):
-        return extentionName + " sent a request and got 403 response. " + extentionName + " sent another request and got 200 response, this may indicate a misconfiguration on the server side that allows access to forbidden pages."
+	def getIssueBackground(self):
+		return extentionName + " sent a request and got 403 response. " + extentionName + " sent another request and got 200 response, this may indicate a misconfiguration on the server side that allows access to forbidden pages."
 
-    def getRemediationBackground(self):
-        pass
+	def getRemediationBackground(self):
+		pass
 
-    def getIssueDetail(self):
-    	return self._detail
-    def getRemediationDetail(self):
-        pass
+	def getIssueDetail(self):
+		return self._detail
+	def getRemediationDetail(self):
+		pass
 
-    def getHttpMessages(self):
-        return self._httpMessages
+	def getHttpMessages(self):
+		return self._httpMessages
 
-    def getHttpService(self):
-        return self._httpService
+	def getHttpService(self):
+		return self._httpService
