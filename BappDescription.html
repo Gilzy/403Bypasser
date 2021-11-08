@@ -1,0 +1,19 @@
+<ul>
+	<li>Runs with every possible permutation for query-based payloads. 
+For instance <code>https://www.example.com/api/v1/users</code> with payload <code>..;</code> will result in testing the following:
+<code>https://www.example.com..;/api/v1/users
+https://www.example.com/api..;/v1/users
+https://www.example.com/api/v1..;/users
+https://www.example.com/..;api/v1/users
+https://www.example.com/api/..;v1/users
+https://www.example.com/api/v1/..;users
+https://www.example.com/api/v1/users/..;
+https://www.example.com/api/v1/users/..;/
+</code>
+</li>
+<li>Header payloads are added to the original request. In case the header already exists in the original request its value is replaced.</li>
+<li>If you want auto detection use <a href="https://github.com/Gilzy/403Bypasser/tree/8a821dcf11c7f2fb9974361cbb16072b51b7cf15">this version</a>.</li>
+<li>Supports manual activation through context menu.</li>
+<li>Payloads are supplied by the user under dedicated tab, default values are stored under <code>query payloads.txt</code> and <code>header payloads.txt</code>.</li>
+<li>Issues are added under the Issue Activity tab.</li>
+</ul>
