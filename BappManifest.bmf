@@ -3,7 +3,7 @@ ExtensionType: 2
 Name: 403 Bypasser
 RepoName: 403-bypasser
 ScreenVersion: 1.1
-SerialVersion: 2
+SerialVersion: 3
 MinPlatformVersion: 0
 ProOnly: True
 Author: Gil Nothmann
