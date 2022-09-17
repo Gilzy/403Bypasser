@@ -332,7 +332,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 
 			issue = []
 			global requestNum
-			issue.append("<tr><td>" + str(requestNum) + "</td><td>header: " + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + originalRequestUrl + "</td><td>" + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 			issue.append(newRequestResult)
 			results.append(issue)
 
@@ -351,18 +351,20 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return None
 
 		else:
-			result = self.testRequest(baseRequestResponse)
-			if result != None:
+			issues = self.testRequest(baseRequestResponse)
+			if issues != None:
 				if isCalledFromMenu == True:
-					self.callbacks.addScanIssue(result[0])
+					for i in range(len(issues)):
+						self.callbacks.addScanIssue(issues[i])
 				else:
-					return result
+					return issues
 			else:
 				return None
 
 	def testRequest(self, baseRequestResponse):
 		queryPayloadsResults = []
 		headerPayloadsResults = []
+		findings = []
 		httpService = baseRequestResponse.getHttpService()
 
 		#test for query-based issues
@@ -376,6 +378,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			if result != None:
 				queryPayloadsResults += result
 
+		#process query-based results
 		if len(queryPayloadsResults) > 0:
 			issueDetails = []
 			issueHttpMessages = []
@@ -385,14 +388,18 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 				issueDetails.append(issue[0])
 				issueHttpMessages.append(issue[1])
 
-			return [CustomScanIssue(
+
+			findings.append(
+				CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass",
 				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
-				)]
+				)
+				)
+
 		#test for header-based issues
 		headerPayloadsFromTable = []
 		for rowIndex in range(self.frm.headerPayloadsTable.getRowCount()):
@@ -412,15 +419,21 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			for issue in headerPayloadsResults:
 				issueDetails.append(issue[0])
 				issueHttpMessages.append(issue[1])
-			return [CustomScanIssue(
+
+			findings.append(
+				CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass - Header Based",
-				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
+				"<table><tr><td>Request #</td><td>URL</td><td>Header</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
-				)]
-		return None
+				)
+				)
+		if findings:
+			return findings
+		else:
+			return None
 
 
 	def consolidateDuplicateIssues(self, existingIssue, newIssue):
