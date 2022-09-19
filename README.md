@@ -26,7 +26,5 @@ For instance `https://www.example.com/api/v1/users` with payload `..;` will resu
 ### TODO
 - [x] Add support for header-based payloads.
 - [x] Add support for manual activation via context menu.
-- [ ] Add support for replacing GET requests with POST and empty content-length.
+- [x] Add support for replacing GET requests with POST and empty content-length.
 - [x] Show relevant requests/responses when adding a new issue.
-- [ ] Automate detection for special cases shown in Orange Tsai's talk.
-- [ ] Improve detection algorithm to reduce false-positives.
