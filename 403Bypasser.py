@@ -284,6 +284,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 
 				issue = []
 				global requestNum
+
 				issue.append("<tr><td>" + str(requestNum) + "</td><td>" + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 				issue.append(newRequestResult)
 				results.append(issue)
@@ -331,13 +332,50 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 						resultContentLength = resultContentLength.rstrip(']')
 
 			issue = []
-			global requestNum
+
 			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + originalRequestUrl + "</td><td>" + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 			issue.append(newRequestResult)
 			results.append(issue)
 
 		if len(results) > 0:
 			return results
+		else:
+			return None
+
+	def tryBypassWithPOSTAndEmptyCL(self, baseRequestResponse, httpService):
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		headers = requestInfo.getHeaders()
+		headers[0] = headers[0].replace("GET", "POST")
+		headers.append("Content-Length: 0")
+
+		headersAsJavaSublist = ArrayList()
+		for header in headers:
+			headersAsJavaSublist.add(String(header))
+
+		requestBody = baseRequestResponse.getRequest()[requestInfo.getBodyOffset():]
+
+		newRequest = self.helpers.buildHttpMessage(headersAsJavaSublist, requestBody)
+		newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
+		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
+
+		if newRequestStatusCode == "200":
+			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+			requestUrl = str(baseRequestResponse.getUrl())
+			resultContentLength = "No CL in response"
+
+			for header in responseHeaders:
+				if "Content-Length: " in header:
+					resultContentLength = header[17:]
+					if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+						resultContentLength = resultContentLength.rstrip(']')
+
+			requestNum = 2
+			issue = []
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + requestUrl + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+			issue.append(newRequestResult)
+
+		if len(issue) > 0:
+			return issue
 		else:
 			return None
 
@@ -401,6 +439,9 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 				)
 
 		#test for header-based issues
+		global requestNum
+		requestNum = 2
+
 		headerPayloadsFromTable = []
 		for rowIndex in range(self.frm.headerPayloadsTable.getRowCount()):
 			headerPayloadsFromTable.append(str(self.frm.headerPayloadsTable.getValueAt(rowIndex, 0)))
@@ -410,6 +451,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			result = self.tryBypassWithHeaderPayload(baseRequestResponse, payload, httpService)
 			if result != None:
 				headerPayloadsResults += result
+
+		#process header-based results
 
 		if len(headerPayloadsResults) > 0:
 			issueDetails = []
@@ -430,10 +473,37 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 				"High",
 				)
 				)
-		if findings:
-			return findings
-		else:
-			return None
+
+		#replace GET with POST and empty Content-Length
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		requestHeaders = requestInfo.getHeaders()
+		if requestHeaders[0].startswith("GET"):
+			result = self.tryBypassWithPOSTAndEmptyCL(baseRequestResponse, httpService)
+
+			if result != None:
+				issueDetails = []
+				issueHttpMessages = []
+
+				issueHttpMessages.append(baseRequestResponse)
+				issueDetails.append(result[0])
+				issueHttpMessages.append(result[1])
+
+
+				findings.append(
+					CustomScanIssue(
+					httpService,
+					self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+					issueHttpMessages,
+					"Possible 403 Bypass - Different Request Method",
+					"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
+					"High",
+					)
+					)
+
+			if findings:
+				return findings
+			else:
+				return None
 
 
 	def consolidateDuplicateIssues(self, existingIssue, newIssue):
