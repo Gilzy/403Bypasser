@@ -343,6 +343,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return None
 
 	def tryBypassWithPOSTAndEmptyCL(self, baseRequestResponse, httpService):
+		issue = []
 		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
 		headers = requestInfo.getHeaders()
 		headers[0] = headers[0].replace("GET", "POST")
@@ -370,6 +371,40 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 						resultContentLength = resultContentLength.rstrip(']')
 
 			requestNum = 2
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + requestUrl + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+			issue.append(newRequestResult)
+
+		if len(issue) > 0:
+			return issue
+		else:
+			return None
+
+	def tryBypassWithDowngradedHttpAndNoHeaders(self, baseRequestResponse, httpService):
+		issue = []
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		headers = requestInfo.getHeaders()
+		newHeader = headers[0].replace("HTTP/1.1", "HTTP/1.0")
+
+		requestBody = baseRequestResponse.getRequest()[requestInfo.getBodyOffset():]
+		headersAsJavaSublist = ArrayList()
+		headersAsJavaSublist.add(String(newHeader))
+
+		newRequest = self.helpers.buildHttpMessage(headersAsJavaSublist, requestBody)
+		newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
+		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
+
+		if newRequestStatusCode == "200":
+			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+			requestUrl = str(baseRequestResponse.getUrl())
+			resultContentLength = "No CL in response"
+
+			for header in responseHeaders:
+				if "Content-Length: " in header:
+					resultContentLength = header[17:]
+					if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+						resultContentLength = resultContentLength.rstrip(']')
+
+			requestNum = 2
 			issue = []
 			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + requestUrl + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 			issue.append(newRequestResult)
@@ -378,6 +413,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return issue
 		else:
 			return None
+
+
 
 
 	def doPassiveScan(self, baseRequestResponse):
@@ -478,15 +515,15 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
 		requestHeaders = requestInfo.getHeaders()
 		if requestHeaders[0].startswith("GET"):
-			result = self.tryBypassWithPOSTAndEmptyCL(baseRequestResponse, httpService)
+			postAndEmptyCLResult = self.tryBypassWithPOSTAndEmptyCL(baseRequestResponse, httpService)
 
-			if result != None:
+			if postAndEmptyCLResult != None:
 				issueDetails = []
 				issueHttpMessages = []
 
 				issueHttpMessages.append(baseRequestResponse)
-				issueDetails.append(result[0])
-				issueHttpMessages.append(result[1])
+				issueDetails.append(postAndEmptyCLResult[0])
+				issueHttpMessages.append(postAndEmptyCLResult[1])
 
 
 				findings.append(
@@ -500,10 +537,31 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 					)
 					)
 
-			if findings:
-				return findings
-			else:
-				return None
+		#change the protocol to HTTP/1.0 and remove all other headers
+		downgradedHttpResult = self.tryBypassWithDowngradedHttpAndNoHeaders(baseRequestResponse, httpService)
+		if downgradedHttpResult != None:
+			issueDetails = []
+			issueHttpMessages = []
+
+			issueHttpMessages.append(baseRequestResponse)
+			issueDetails.append(downgradedHttpResult[0])
+			issueHttpMessages.append(downgradedHttpResult[1])
+
+			findings.append(
+				CustomScanIssue(
+				httpService,
+				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+				issueHttpMessages,
+				"Possible 403 Bypass - Downgraded HTTP Version",
+				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
+				"High",
+				)
+				)
+
+		if findings:
+			return findings
+		else:
+			return None
 
 
 	def consolidateDuplicateIssues(self, existingIssue, newIssue):
