@@ -18,15 +18,8 @@ For instance `https://www.example.com/api/v1/users` with payload `..;` will resu
   https://www.example.com/api/v1/users/..;/
   ```
 - Header payloads are added to the original request. In case the header already exists in the original request its value is replaced.
-- ~~Automatically detects and tries to bypass requests with 403 responses.~~ If you want auto detection use [this version](https://github.com/Gilzy/403Bypasser/tree/8a821dcf11c7f2fb9974361cbb16072b51b7cf15).
+- For GET requests the extension will try to bypass Forbidden pages by changing the method to POST with an empty body.
+- The extension will attempt to downgrade HTTP/1.1 to HTTP/1.0 and remove all headers as shown by [Abbas.heybati](https://infosecwriteups.com/403-bypass-lyncdiscover-microsoft-com-db2778458c33)
 - Supports manual activation through context menu.
-- Payloads are supplied by the user under dedicated tab, default values are stored under `query payloads.txt` and `header payloads.txt`.
+- Payloads are supplied by the user under dedicated tab, default values are stored in `query payloads.txt` and `header payloads.txt`.
 - Issues are added under the Issue Activity tab.
-
-### TODO
-- [x] Add support for header-based payloads.
-- [x] Add support for manual activation via context menu.
-- [ ] Add support for replacing GET requests with POST and empty content-length.
-- [x] Show relevant requests/responses when adding a new issue.
-- [ ] Automate detection for special cases shown in Orange Tsai's talk.
-- [ ] Improve detection algorithm to reduce false-positives.

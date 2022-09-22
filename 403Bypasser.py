@@ -284,6 +284,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 
 				issue = []
 				global requestNum
+
 				issue.append("<tr><td>" + str(requestNum) + "</td><td>" + vulnerableReuqestUrl.replace(payload, "<b>" + payload + "</b>") + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 				issue.append(newRequestResult)
 				results.append(issue)
@@ -331,8 +332,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 						resultContentLength = resultContentLength.rstrip(']')
 
 			issue = []
-			global requestNum
-			issue.append("<tr><td>" + str(requestNum) + "</td><td>header: " + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + originalRequestUrl + "</td><td>" + payload + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
 			issue.append(newRequestResult)
 			results.append(issue)
 
@@ -340,6 +341,80 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return results
 		else:
 			return None
+
+	def tryBypassWithPOSTAndEmptyCL(self, baseRequestResponse, httpService):
+		issue = []
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		headers = requestInfo.getHeaders()
+		headers[0] = headers[0].replace("GET", "POST")
+		headers.append("Content-Length: 0")
+
+		headersAsJavaSublist = ArrayList()
+		for header in headers:
+			headersAsJavaSublist.add(String(header))
+
+		requestBody = baseRequestResponse.getRequest()[requestInfo.getBodyOffset():]
+
+		newRequest = self.helpers.buildHttpMessage(headersAsJavaSublist, requestBody)
+		newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
+		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
+
+		if newRequestStatusCode == "200":
+			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+			requestUrl = str(baseRequestResponse.getUrl())
+			resultContentLength = "No CL in response"
+
+			for header in responseHeaders:
+				if "Content-Length: " in header:
+					resultContentLength = header[17:]
+					if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+						resultContentLength = resultContentLength.rstrip(']')
+
+			requestNum = 2
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + requestUrl + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+			issue.append(newRequestResult)
+
+		if len(issue) > 0:
+			return issue
+		else:
+			return None
+
+	def tryBypassWithDowngradedHttpAndNoHeaders(self, baseRequestResponse, httpService):
+		issue = []
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		headers = requestInfo.getHeaders()
+		newHeader = headers[0].replace("HTTP/1.1", "HTTP/1.0")
+
+		requestBody = baseRequestResponse.getRequest()[requestInfo.getBodyOffset():]
+		headersAsJavaSublist = ArrayList()
+		headersAsJavaSublist.add(String(newHeader))
+
+		newRequest = self.helpers.buildHttpMessage(headersAsJavaSublist, requestBody)
+		newRequestResult = self.callbacks.makeHttpRequest(httpService, newRequest)
+		newRequestStatusCode = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getStatusCode())
+
+		if newRequestStatusCode == "200":
+			responseHeaders = str(self.helpers.analyzeResponse(newRequestResult.getResponse()).getHeaders()).split(",")
+			requestUrl = str(baseRequestResponse.getUrl())
+			resultContentLength = "No CL in response"
+
+			for header in responseHeaders:
+				if "Content-Length: " in header:
+					resultContentLength = header[17:]
+					if resultContentLength[-1] == ']': # happens if CL header is the last header in response
+						resultContentLength = resultContentLength.rstrip(']')
+
+			requestNum = 2
+			issue = []
+			issue.append("<tr><td>" + str(requestNum) + "</td><td>" + requestUrl + "</td> <td>" + newRequestStatusCode + "</td> <td>" + resultContentLength + "</td></tr>")
+			issue.append(newRequestResult)
+
+		if len(issue) > 0:
+			return issue
+		else:
+			return None
+
+
 
 
 	def doPassiveScan(self, baseRequestResponse):
@@ -351,18 +426,20 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			return None
 
 		else:
-			result = self.testRequest(baseRequestResponse)
-			if result != None:
+			issues = self.testRequest(baseRequestResponse)
+			if issues != None:
 				if isCalledFromMenu == True:
-					self.callbacks.addScanIssue(result[0])
+					for i in range(len(issues)):
+						self.callbacks.addScanIssue(issues[i])
 				else:
-					return result
+					return issues
 			else:
 				return None
 
 	def testRequest(self, baseRequestResponse):
 		queryPayloadsResults = []
 		headerPayloadsResults = []
+		findings = []
 		httpService = baseRequestResponse.getHttpService()
 
 		#test for query-based issues
@@ -376,6 +453,7 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			if result != None:
 				queryPayloadsResults += result
 
+		#process query-based results
 		if len(queryPayloadsResults) > 0:
 			issueDetails = []
 			issueHttpMessages = []
@@ -385,15 +463,22 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 				issueDetails.append(issue[0])
 				issueHttpMessages.append(issue[1])
 
-			return [CustomScanIssue(
+
+			findings.append(
+				CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass",
 				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
-				)]
+				)
+				)
+
 		#test for header-based issues
+		global requestNum
+		requestNum = 2
+
 		headerPayloadsFromTable = []
 		for rowIndex in range(self.frm.headerPayloadsTable.getRowCount()):
 			headerPayloadsFromTable.append(str(self.frm.headerPayloadsTable.getValueAt(rowIndex, 0)))
@@ -404,6 +489,8 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			if result != None:
 				headerPayloadsResults += result
 
+		#process header-based results
+
 		if len(headerPayloadsResults) > 0:
 			issueDetails = []
 			issueHttpMessages = []
@@ -412,15 +499,69 @@ class BurpExtender(IBurpExtender, IScannerCheck, IContextMenuFactory, ITab):
 			for issue in headerPayloadsResults:
 				issueDetails.append(issue[0])
 				issueHttpMessages.append(issue[1])
-			return [CustomScanIssue(
+
+			findings.append(
+				CustomScanIssue(
 				httpService,
 				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
 				issueHttpMessages,
 				"Possible 403 Bypass - Header Based",
+				"<table><tr><td>Request #</td><td>URL</td><td>Header</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
+				"High",
+				)
+				)
+
+		#replace GET with POST and empty Content-Length
+		requestInfo = self.helpers.analyzeRequest(baseRequestResponse)
+		requestHeaders = requestInfo.getHeaders()
+		if requestHeaders[0].startswith("GET"):
+			postAndEmptyCLResult = self.tryBypassWithPOSTAndEmptyCL(baseRequestResponse, httpService)
+
+			if postAndEmptyCLResult != None:
+				issueDetails = []
+				issueHttpMessages = []
+
+				issueHttpMessages.append(baseRequestResponse)
+				issueDetails.append(postAndEmptyCLResult[0])
+				issueHttpMessages.append(postAndEmptyCLResult[1])
+
+
+				findings.append(
+					CustomScanIssue(
+					httpService,
+					self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+					issueHttpMessages,
+					"Possible 403 Bypass - Different Request Method",
+					"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
+					"High",
+					)
+					)
+
+		#change the protocol to HTTP/1.0 and remove all other headers
+		downgradedHttpResult = self.tryBypassWithDowngradedHttpAndNoHeaders(baseRequestResponse, httpService)
+		if downgradedHttpResult != None:
+			issueDetails = []
+			issueHttpMessages = []
+
+			issueHttpMessages.append(baseRequestResponse)
+			issueDetails.append(downgradedHttpResult[0])
+			issueHttpMessages.append(downgradedHttpResult[1])
+
+			findings.append(
+				CustomScanIssue(
+				httpService,
+				self.helpers.analyzeRequest(baseRequestResponse).getUrl(),
+				issueHttpMessages,
+				"Possible 403 Bypass - Downgraded HTTP Version",
 				"<table><tr><td>Request #</td><td>URL</td><td>Status Code</td><td>Content Length</td></tr>" + "".join(issueDetails) + "</table>",
 				"High",
-				)]
-		return None
+				)
+				)
+
+		if findings:
+			return findings
+		else:
+			return None
 
 
 	def consolidateDuplicateIssues(self, existingIssue, newIssue):
