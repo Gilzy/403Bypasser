@@ -2,8 +2,8 @@ Uuid: 444407b96d9c4de0adb7aed89e826122
 ExtensionType: 2
 Name: 403 Bypasser
 RepoName: 403-bypasser
-ScreenVersion: 1.1
-SerialVersion: 3
+ScreenVersion: 1.2
+SerialVersion: 5
 MinPlatformVersion: 0
 ProOnly: True
 Author: Gil Nothmann
